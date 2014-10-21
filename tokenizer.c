@@ -222,23 +222,25 @@ token scan_string(FILE *file) {
 	int buffer_len = 32;
 	int i = 0;
 	token tok;
+	char ch;
 	tok.text = (char *)malloc(buffer_len * sizeof(char));
 	tok.text[i++] = next_ch(file);
 	tok.type = (tok.text[0] == '\"') ? string_literal : char_constant;
 	tok.line = line;
 	tok.col = col;
 	
-	while (peek_ch(file) != tok.text[0]) {
-		char ch;
-		ch = next_ch(file);
-		tok.text[i++] = ch;
+	while ((ch = peek_ch(file)) != tok.text[0]) {
 		if (ch == '\n' || ch == '\v') {
 			if (tok.type = string_literal) {
-				issue_error("Illegal newline character in string literal", line, col);
+				issue_error("Unclosed string literal", line, col);
 			} else {
-				issue_error("Illegal newline character in character constant", line, col);
+				issue_error("Unclosed character constant", line, col);
 			}
+			tok.text = realloc(tok.text, (i+1) * sizeof(char));
+			tok.text[i] = '\0';
+			return tok;
 		}
+		tok.text[i++] = next_ch(file);
 		if (i == buffer_len) {
 			buffer_len *= 2;
 			tok.text = realloc(tok.text, buffer_len * sizeof(char));
@@ -265,24 +267,25 @@ token scan_preprocessor_string(FILE *file) {
 	int buffer_len = 32;
 	int i = 0;
 	token tok;
-	char end;
+	char ch, end;
 	tok.text = (char *)malloc(buffer_len * sizeof(char));
 	tok.text[i++] = next_ch(file);
 	tok.type = string_literal;
 	tok.line = line;
 	tok.col = col;
-	if (tok.text[0] == '<') end = '>';
-	else if (tok.text[0] = '\"') end = '\"';
-	else {
-		issue
+	if (tok.text[0] == '<') {
+		end = '>';
+	} else {
+		end = '\"';
 	}
-	while (peek_ch(file) != tok.text[0]) {
-		char ch;
-		ch = next_ch(file);
-		tok.text[i++] = ch;
+	while ((ch = peek_ch(file)) != end) {
 		if (ch == '\n' || ch == '\v') {
-			issue_error("Illegal newline character in string literal", line, col);
+			issue_error("Unclosed string literal", line, col);
+			tok.text = realloc(tok.text, (i+1) * sizeof(char));
+			tok.text[i] = '\0';
+			return tok;
 		}
+		tok.text[i++] = next_ch(file);
 		if (i == buffer_len) {
 			buffer_len *= 2;
 			tok.text = realloc(tok.text, buffer_len * sizeof(char));
