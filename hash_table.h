@@ -18,7 +18,10 @@ hash_table hash_table_create(unsigned long size);
  */
 int hash_table_free(hash_table table, int free_values);
 
-void hash_table_insert(hash_table table, char *key, void *value);
+/* Inserts a new value into the hash table
+ * If a value already existed at the given key, returns it.
+ */
+void *hash_table_insert(hash_table table, char *key, void *value);
 
 void *hash_table_remove(hash_table table, char *key);
 

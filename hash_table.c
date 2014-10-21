@@ -50,9 +50,10 @@ int hash_table_free(hash_table table, int free_values) {
 	free(table.entries);
 }
 
-void hash_table_insert(hash_table table, char *key, void *value) {
+void *hash_table_insert(hash_table table, char *key, void *value) {
 	unsigned long index;
 	hash_table_entry new_entry;
+	void *old_value = NULL;
 	index = hash_string(key) % table.size;
 	new_entry.key = malloc((1+strlen(key)) * sizeof(char));
 	strcpy(new_entry.key, key);
@@ -60,13 +61,25 @@ void hash_table_insert(hash_table table, char *key, void *value) {
 	new_entry.next = NULL;
 	if (!table.entries[index].key) {
 		table.entries[index] = new_entry;
+	} else if (strcmp(table.entries[index].key, key) == 0) {
+		old_value = table.entries[index].value;
+		table.entries[index] = new_entry;
 	} else {
 		hash_table_entry *current_entry;
 		current_entry = &table.entries[index];
-		while(current_entry->next) current_entry = current_entry->next;
+		while(current_entry->next) {
+			current_entry = current_entry->next;
+			if (strcmp(key, current_entry->key) == 0) {
+				old_value = current_entry->value;
+				new_entry.next = current_entry->next;
+				*current_entry = new_entry;
+				return old_value;
+			}
+		}
 		current_entry->next = malloc(sizeof(hash_table_entry));
 		*(current_entry->next) = new_entry;
 	}
+	return old_value;
 }
 
 void *hash_table_retrieve(hash_table table, char *key) {

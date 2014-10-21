@@ -7,12 +7,12 @@
 int line = 1;
 int col = 0;
 
-int is_identifier_start(char c) {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-}
-
 int is_digit(char c) {
 	return c >= '0' && c <= '9';
+}
+
+int is_identifier_start(char c) {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
 int is_identifier_char(char c) {
@@ -147,6 +147,20 @@ char peek_ch(FILE *file) {
 	return ch;
 }
 
+/*
+ * Consumes whitespace in the file.
+ * returns the number of newlines consumed
+ */
+int consume_whitespace(FILE *file) {
+	int newlines = 0;
+	while (isspace(peek_ch(file))) {
+		char ch;
+		ch = next_ch(file);
+		newlines += (ch == '\n' || ch == '\v');
+	}
+	return newlines;
+}
+
 token scan_identifier(FILE *file) {
 	int buffer_len = 32;
 	int i = 0;
@@ -243,6 +257,43 @@ token scan_string(FILE *file) {
 	return tok;
 }
 
+/*
+ * Similar to scanning a normal string, but with no special treatment of
+ * backslash characters
+ */
+token scan_preprocessor_string(FILE *file) {
+	int buffer_len = 32;
+	int i = 0;
+	token tok;
+	char end;
+	tok.text = (char *)malloc(buffer_len * sizeof(char));
+	tok.text[i++] = next_ch(file);
+	tok.type = string_literal;
+	tok.line = line;
+	tok.col = col;
+	if (tok.text[0] == '<') end = '>';
+	else if (tok.text[0] = '\"') end = '\"';
+	else {
+		issue
+	}
+	while (peek_ch(file) != tok.text[0]) {
+		char ch;
+		ch = next_ch(file);
+		tok.text[i++] = ch;
+		if (ch == '\n' || ch == '\v') {
+			issue_error("Illegal newline character in string literal", line, col);
+		}
+		if (i == buffer_len) {
+			buffer_len *= 2;
+			tok.text = realloc(tok.text, buffer_len * sizeof(char));
+		}
+	}
+	tok.text[i++] = next_ch(file);
+	tok.text = realloc(tok.text, (i+1) * sizeof(char));
+	tok.text[i] = '\0';
+	return tok;
+}
+
 token scan_symbol(FILE *file) {
 	char ch = next_ch(file);
 	char ch2;
@@ -251,7 +302,7 @@ token scan_symbol(FILE *file) {
 	tok.col = col;
 	tok.type = symbol;
 	switch (ch) {
-		//everything that is always one character long
+		/* everything that is always one character long */
 		case '(':
 		case ')':
 		case '{':
@@ -267,7 +318,7 @@ token scan_symbol(FILE *file) {
 			tok.text = (char *)calloc(2, sizeof(char));
 			tok.text[0] = ch;
 			break;
-		//everything that can appear either alone or followed by a '='
+		/* everything that can appear either alone or followed by a '=' */
 		case '!':
 		case '%':
 		case '^':
@@ -284,7 +335,6 @@ token scan_symbol(FILE *file) {
 			break;
 		/* everything that can appear either alone, reduplicated, or followed by a '=' */
 		case '&':
-		case '-':
 		case '+':
 		case '|':
 			ch2 = peek_ch(file);
@@ -297,6 +347,19 @@ token scan_symbol(FILE *file) {
 				tok.text[0] = ch;
 			}
 			break;
+		
+		case '-':
+			ch2 = peek_ch(file);
+			if (ch2 == ch || ch2 == '=' || ch2 == '>') {
+				tok.text = (char *)calloc(3, sizeof(char));
+				tok.text[0] = ch;
+				tok.text[1] = next_ch(file);
+			} else {
+				tok.text = (char *)calloc(2, sizeof(char));
+				tok.text[0] = ch;
+			}
+			break;
+		
 		case '<':
 		case '>':
 			ch2 = peek_ch(file);
@@ -345,7 +408,8 @@ token scan_symbol(FILE *file) {
 					asterisk = (ch == '*');
 					ch = next_ch(file);
 				} while (ch && !(asterisk && ch == '/'));
-				return next_token(file);
+				tok.type = comment;
+				tok.text = NULL;
 			} else {
 				tok.text = (char *)calloc(2, sizeof(char));
 				tok.text[0] = ch;
@@ -355,25 +419,9 @@ token scan_symbol(FILE *file) {
 	return tok;
 }
 
-token next_token(FILE *file) {
+token scan_token(FILE *file) {
 	char ch;
-	/* consume whitespace */
-	while (isspace(ch = peek_ch(file))) {
-		next_ch(file);
-		/* we need to explicitly remember newlines in our token stream for 
-		   the sake of preprocessor directives.  Note this doesn't pick up
-		   line continuations; those are caught in next_ch */
-		if (ch == '\n' || ch == '\v') {
-			token tok;
-			tok.type = newline;
-			tok.text = (char *)calloc(2, sizeof(char));
-			tok.text[0] = ch;
-			tok.line = line;
-			tok.col = col;
-			return tok;
-		}
-		
-	}
+	ch = peek_ch(file);
 	if (ch == '\0') {
 		token tok;
 		tok.line = line;
@@ -400,59 +448,3 @@ token next_token(FILE *file) {
 		return tok;
 	}
 }
-
-int main(int argc, char *argv[]) {
-	
-	token tok;
-	while ((tok = next_token(stdin)).type != eof) {
-		char *typeString;
-		switch (tok.type) {
-			case identifier:
-				typeString = "Identifier";
-				break;
-			case number:
-				typeString = "Number";
-				break;
-			case char_constant:
-				typeString = "Character Constant";
-				break;
-			case string_literal:
-				typeString = "String Literal";
-				break;
-			case symbol:
-				typeString = "Symbol";
-				break;
-			case other:
-				typeString = "Other";
-				break;
-			case newline:
-				typeString = "New Line";
-				break;
-			case eof:
-				typeString = "End of File";
-				break;
-			default:
-				typeString = "Unknown Token";
-				break;
-		}
-		printf("%s : %s\n@%d:%d\n", tok.text, typeString, tok.line, tok.col);
-	}
-}
-
-token *tokenize(FILE *file, int *count) {
-	token tok;
-	int buffer_size = 1024;
-	int i = 0;
-	token *token_buffer = (token *)malloc(buffer_size *  sizeof(token));
-	do {
-		tok = tok = next_token(file);
-		if (i == buffer_size) {
-			buffer_size *= 2;
-			token_buffer = (token *)realloc(token_buffer, buffer_size * sizeof(token));
-		}
-		token_buffer[i++] = tok;
-	} while (tok.type != eof);
-	*count = i;
-	return token_buffer;
-}
-

@@ -2,15 +2,24 @@
    handling.  This is the size of our table.  Adjust for time/space
    tradeoffs. 
 */
-#define MACRO_HASH_TABLE_SIZE 1024
+#include "tokenizer.h"
 
-typedef struct s_macro{
-	char *name;
-	int n_parameters;
-	char **parameters;
-	int body_len;
+#define MACRO_HASH_TABLE_SIZE 1024
+#define INITIAL_TOKEN_STREAM_SIZE 4096
+
+#define BRACKET_PATH "/usr/local/include:libdir/gcc/target/version/include:/usr/target/include:/usr/include"
+#define QUOTE_PATH "."
+
+typedef struct {
+	int num_params, body_len;
+	char **params;
 	token *body;
-	/* This struct is a linked list node, and here is our next pointer.
-	   Used for hash collisions */
-	struct s_macro *next;
 } macro;
+
+void initialize();
+
+void append_token(token tok);
+
+void tokenize(FILE *file);
+
+void parse_directive(FILE *file);
