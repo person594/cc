@@ -100,17 +100,17 @@ void *hash_table_remove(hash_table table, char *key) {
 	void *value;
 	index = hash_string(key) % table.size;
 	current_entry = &table.entries[index];
-	while (strcmp(key, current_entry->key)) {
+	while (current_entry->key && strcmp(key, current_entry->key)) {
 		previous_entry = current_entry;
 		current_entry = current_entry->next;
-		if (!current_entry) return NULL;
 	}
-	if (previous_entry) {
-		previous_entry->next = current_entry->next;
-	}
+	if (!current_entry) return NULL;
 	free(current_entry->key);
 	value = current_entry->value;
-	free(current_entry);
+	if (previous_entry) {
+		previous_entry->next = current_entry->next;
+		free(current_entry);
+	}
 	return value;
 }
 

@@ -4,11 +4,11 @@
 
 int error_encountered = 0;
 
-void issue_warning(char *text, int line, int col) {
+void issue_warning(char *text, token tok) {
 	printf("warn: %s\n", text);
 }
 
-void issue_error(char *text, int line, int col) {
+void issue_error(char *text, token tok) {
 	error_encountered = 1;
 	printf("err: %s\n", text);
 }

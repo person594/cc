@@ -23,3 +23,5 @@ void append_token(token tok);
 void tokenize(FILE *file);
 
 void parse_directive(FILE *file);
+
+void expand_macro(FILE *file, macro mac);

@@ -96,6 +96,7 @@ char peek_ch(FILE *file) {
 	c = getc(file);
 	ch = (char) c;
 	if (c < 0) {
+		c = 0;
 		ch = '\0';
 	} else if (c == '\\') {
 		int c2;
@@ -145,6 +146,13 @@ char peek_ch(FILE *file) {
 	}
 	ungetc(c, file);
 	return ch;
+}
+
+void skip_line(FILE *file) {
+	char ch;
+	while (ch = next_ch(file)) {
+		if (ch == '\n' || ch == '\v') return;
+	}
 }
 
 /*
@@ -231,13 +239,13 @@ token scan_string(FILE *file) {
 	
 	while ((ch = peek_ch(file)) != tok.text[0]) {
 		if (ch == '\n' || ch == '\v') {
-			if (tok.type = string_literal) {
-				issue_error("Unclosed string literal", line, col);
-			} else {
-				issue_error("Unclosed character constant", line, col);
-			}
 			tok.text = realloc(tok.text, (i+1) * sizeof(char));
 			tok.text[i] = '\0';
+			if (tok.type = string_literal) {
+				issue_error("Unclosed string literal", tok);
+			} else {
+				issue_error("Unclosed character constant", tok);
+			}
 			return tok;
 		}
 		tok.text[i++] = next_ch(file);
@@ -280,9 +288,9 @@ token scan_preprocessor_string(FILE *file) {
 	}
 	while ((ch = peek_ch(file)) != end) {
 		if (ch == '\n' || ch == '\v') {
-			issue_error("Unclosed string literal", line, col);
 			tok.text = realloc(tok.text, (i+1) * sizeof(char));
 			tok.text[i] = '\0';
+			issue_error("Unclosed string literal", tok);
 			return tok;
 		}
 		tok.text[i++] = next_ch(file);
@@ -412,7 +420,7 @@ token scan_symbol(FILE *file) {
 					ch = next_ch(file);
 				} while (ch && !(asterisk && ch == '/'));
 				tok.type = comment;
-				tok.text = NULL;
+				tok.text = "";
 			} else {
 				tok.text = (char *)calloc(2, sizeof(char));
 				tok.text[0] = ch;

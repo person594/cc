@@ -1,3 +1,6 @@
+#ifndef CC_TOKENIZER_H
+#define CC_TOKENIZER_H
+
 #include <stdlib.h> 
 
 typedef enum {
@@ -26,6 +29,7 @@ int is_symbol_start(char c);
 char next_ch(FILE *file);
 char peek_ch(FILE *file);
 
+void skip_line(FILE *file);
 int consume_whitespace(FILE *file);
 
 token scan_identifier(FILE *file);
@@ -34,3 +38,5 @@ token scan_string(FILE *file);
 token scan_preprocessor_string(FILE *file);
 token scan_symbol(FILE *file);
 token scan_token(FILE *file);
+
+#endif
