@@ -73,11 +73,14 @@ void expand_and_append(token tok) {
 				token **args;
 				int n_args;
 				int i;
+				arguments[args_read] = realloc(arguments[args_read], (tokens_in_arg + 1) * sizeof(token));
+				tok.type = eof;
+				arguments[args_read][tokens_in_arg++] = tok;
 				n_args = ++args_read;
 				mac = current_function_macro;
 				args = arguments;
 				current_function_macro = NULL;
-				if (n_args != current_function_macro->num_params) {
+				if (n_args != mac->num_params) {
 					int i;
 					issue_error("Incorrect number of arguments for macro", function_macro_token);
 				} else { /* This part can be recursive, we've gotta be careful here */
@@ -96,38 +99,39 @@ void expand_and_append(token tok) {
 			}
 		}
 		
+		/* At this point we know they haven't closed their parens, they actually
+		 * intend to give us an argument */
+		
+		if (args_read == -1) {
+			args_read = 0;
+		}
+		
 		if (args_read >= current_function_macro->num_params) {
 			/* we'll be throwing an error sooner or later, but let's just keep eating
 			 * tokens until they close their parens */
 			return;
 		}
 		
-		if (args_read == -1) {
-			args_read = 0;
-		}
+		/* After this point, we know that arguments[args_read] is in bounds,
+		 * i.e. they haven't given us too many arguments yet */
 		
-		if (current_function_macro->num_params > 0) {
-		 if (tokens_in_arg & (tokens_in_arg - 1) == 0) {
-			 /* if tokens_in_arg is a power of 2, double the capacity of args[args_read] */
-				if (tokens_in_arg == 0) {
-					arguments[args_read] = (token *)malloc(sizeof(token));
-				} else {
-					arguments[args_read] = (token *)realloc(arguments[args_read], 2 * tokens_in_arg * sizeof(token));
-				}
-			}
-			if (paren_depth == 1 && strcmp(tok.text, ",") == 0) {
-				tok.type = eof;
-				arguments[args_read][tokens_in_arg++] = tok;
-				args_read++;
-				tokens_in_arg = 0;
-			} else {
-				arguments[args_read][tokens_in_arg++] = tok;
-			}
-			
+		if (tokens_in_arg == 0) {
+			arguments[args_read] = (token *)malloc(sizeof(token));
+		} else if ((tokens_in_arg & (tokens_in_arg - 1)) == 0) {
+		 /* if tokens_in_arg is a power of 2, double the capacity of args[args_read] */
+			arguments[args_read] = (token *)realloc(arguments[args_read], 2 * tokens_in_arg * sizeof(token));
+		}
+		if (paren_depth == 1 && strcmp(tok.text, ",") == 0) {
+			tok.type = eof;
+			arguments[args_read][tokens_in_arg++] = tok;
+			args_read++;
+			tokens_in_arg = 0;
+		} else {
+			arguments[args_read][tokens_in_arg++] = tok;
 		}
 		
 		
-		
+		return;
 	}
 	
 	
