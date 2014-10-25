@@ -10,6 +10,8 @@
 #define INIT_MACRO_PARAMS_SIZE 4
 #define INIT_MACRO_BODY_SIZE 16
 
+/* This is commented out because lots of stuff in there uses
+ * conditional directives I can't parse yet, leading to infinite loops */
 #define BRACKET_PATH ""/*"/usr/local/include:libdir/gcc/target/version/include:/usr/target/include:/usr/include"*/
 #define QUOTE_PATH "."
 

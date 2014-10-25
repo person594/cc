@@ -107,11 +107,15 @@ void *hash_table_remove(hash_table table, char *key) {
 		if (!current_entry) return NULL;
 	}
 	free(current_entry->key);
-	current_entry->key = NULL;
 	value = current_entry->value;
 	if (previous_entry) {
+		current_entry->key = NULL;
 		previous_entry->next = current_entry->next;
 		free(current_entry);
+	} else if (current_entry->next) {
+		hash_table_entry *next = current_entry->next;
+		*current_entry = *current_entry->next;
+		free(next);
 	}
 	return value;
 }
