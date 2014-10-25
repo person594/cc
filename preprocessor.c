@@ -172,17 +172,16 @@ void tokenize(FILE *file) {
 	int is_new_line = 1;
 	token tok;
 	if (!tokenizer_initialized) initialize();
-	do {
-		is_new_line = consume_whitespace(file) || is_new_line;
-		tok = scan_token(file);
-		while (is_new_line && strcmp(tok.text, "#") == 0) {
+	consume_whitespace(file);
+	while ((tok = scan_token(file)).type != eof) {
+		if (is_new_line && strcmp(tok.text, "#") == 0) {
 			parse_directive(file);
 			consume_whitespace(file);
-			tok = scan_token(file);
+			continue;
 		}
-		is_new_line = 0;
 		expand_and_append(tok);
-	} while (tok.type != eof);
+		is_new_line = consume_whitespace(file);
+	}
 }
 
 void parse_directive(FILE *file) {
@@ -271,7 +270,7 @@ void parse_macro_definition(FILE *file) {
 	char *macro_name;
 	int body_size;
 	mac = (macro *)malloc(sizeof(macro));
-	mac->num_params = 0;
+	mac->num_params = -1;
 	mac->body_len = 0;
 	mac->params = NULL;
 	mac->body = NULL;

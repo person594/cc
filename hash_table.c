@@ -11,7 +11,7 @@ unsigned long hash_string(char *key) {
 	unsigned long hash = 5381;
 	int c;
 	while (c = *key++) {
-		hash += hash<<5 + c;
+		hash += (hash<<5) + c;
 	}
 	return hash;
 }
@@ -100,12 +100,14 @@ void *hash_table_remove(hash_table table, char *key) {
 	void *value;
 	index = hash_string(key) % table.size;
 	current_entry = &table.entries[index];
-	while (current_entry->key && strcmp(key, current_entry->key)) {
+	if (!current_entry->key) return NULL;
+	while (strcmp(key, current_entry->key)) {
 		previous_entry = current_entry;
 		current_entry = current_entry->next;
+		if (!current_entry) return NULL;
 	}
-	if (!current_entry) return NULL;
 	free(current_entry->key);
+	current_entry->key = NULL;
 	value = current_entry->value;
 	if (previous_entry) {
 		previous_entry->next = current_entry->next;
