@@ -288,8 +288,11 @@ token scan_preprocessor_string(FILE *file) {
 	}
 	while ((ch = peek_ch(file)) != end) {
 		if (ch == '\n' || ch == '\v') {
-			tok.text = realloc(tok.text, (i+1) * sizeof(char));
-			tok.text[i] = '\0';
+			/* For normal strings, we wanted to make as complete of a string token
+			 * as we could.  here, we return an empty string, so we don't end up
+			 * including anything. */
+			tok.text = realloc(tok.text, sizeof(char));
+			tok.text[0] = '\0';
 			issue_error("Unclosed string literal", tok);
 			return tok;
 		}

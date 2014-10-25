@@ -70,14 +70,17 @@ void expand_and_append(token tok) {
 				/* We need some level of reentrancy here, so we're making a copy
 				 * of lots of static variables to keep on the stack. */
 				macro *mac;
-				token **args;
+				token **args, macro_token;
 				int n_args;
 				int i;
-				arguments[args_read] = realloc(arguments[args_read], (tokens_in_arg + 1) * sizeof(token));
-				tok.type = eof;
-				arguments[args_read][tokens_in_arg++] = tok;
+				if (current_function_macro->num_params > 0) {
+					arguments[args_read] = realloc(arguments[args_read], (tokens_in_arg + 1) * sizeof(token));
+					tok.type = eof;
+					arguments[args_read][tokens_in_arg++] = tok;
+				}
 				n_args = ++args_read;
 				mac = current_function_macro;
+				macro_token = function_macro_token;
 				args = arguments;
 				current_function_macro = NULL;
 				if (n_args != mac->num_params) {
@@ -94,7 +97,7 @@ void expand_and_append(token tok) {
 				if (mac->num_params > 0) {
 					free(args);
 				}
-				hash_table_insert(macro_symbol_table, function_macro_token.text, mac);
+				hash_table_insert(macro_symbol_table, macro_token.text, mac);
 				return;
 			}
 		}
@@ -213,6 +216,10 @@ void parse_directive(FILE *file) {
 		} else if (tok.text[0] == '<') {
 			search_path = (char *)malloc((strlen(BRACKET_PATH) + 1) * sizeof(char));
 			strcpy(search_path, BRACKET_PATH);
+		} else {
+			/* There was a tokenization error */
+			skip_line(file);
+			return; 
 		}
 		path = strtok(search_path, ":");
 		while (path) {
@@ -290,6 +297,7 @@ void parse_macro_definition(FILE *file) {
 	 * with no space between */
 	if (peek_ch(file) == '(') {
 		int params_size = INIT_MACRO_PARAMS_SIZE;
+		mac->num_params = 0;
 		mac->params = (char **)malloc(params_size * sizeof(char *));
 		tok = scan_token(file);
 		do {
