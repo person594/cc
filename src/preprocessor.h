@@ -3,6 +3,7 @@
    tradeoffs. 
 */
 #include "tokenizer.h"
+#include "token_stream.h"
 
 #define MACRO_HASH_TABLE_SIZE 1024
 #define INITIAL_TOKEN_STREAM_SIZE 4096

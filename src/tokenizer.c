@@ -443,8 +443,7 @@ token scan_token(FILE *file) {
 		tok.type = eof;
 		tok.text = (char *)calloc(1, sizeof(char));
 		return tok;
-	}
-	else if (is_identifier_start(ch)) {
+	} else if (is_identifier_start(ch)) {
 		return scan_identifier(file);
 	} else if (is_digit(ch)) {
 		return scan_number(file);
@@ -461,4 +460,18 @@ token scan_token(FILE *file) {
 		tok.type = other;
 		return tok;
 	}
+}
+
+token_stream tokenize_line(FILE *file) {
+	token_stream stream;
+	token tok;
+	stream = stream_create();
+	while (consume_whitespace(file) == 0 || stream.length == 0) {
+		tok = scan_token(file);
+		if (tok.type != comment) {
+			stream_append(&stream, tok);
+		}
+		if (tok.type == eof) break;
+	}
+	return stream;
 }

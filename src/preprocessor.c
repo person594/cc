@@ -8,24 +8,12 @@
 
 int tokenizer_initialized = 0;
 hash_table macro_symbol_table;
-token *token_stream;
-unsigned long num_tokens = 0;
-unsigned long token_stream_size = 0;
+token_stream stream;
 
 void initialize() {
 	macro_symbol_table = hash_table_create(MACRO_HASH_TABLE_SIZE);
-	token_stream_size = INITIAL_TOKEN_STREAM_SIZE;
-	token_stream = (token *)malloc(token_stream_size * sizeof(token));
-	num_tokens = 0;
+	stream = stream_create();
 	tokenizer_initialized = 1;
-}
-
-void append_token(token tok) {
-	token_stream[num_tokens++] = tok;
-	if (num_tokens == token_stream_size) {
-		token_stream_size *= 2;
-		token_stream = realloc(token_stream, token_stream_size * sizeof(token));
-	}
 }
 
 /* TODO - do I need to do any special work to make this reentrant?
@@ -49,7 +37,7 @@ void expand_and_append(token tok) {
 			if (strcmp(tok.text, "(")) {
 				/* Oops, they were just mentioning the name of the macro, not envoking it */
 				free(arguments);
-				append_token(function_macro_token);
+				stream_append(&stream, function_macro_token);
 				hash_table_insert(macro_symbol_table, tok.text, current_function_macro);
 				expand_and_append(tok);
 				current_function_macro = NULL;
@@ -164,10 +152,10 @@ void expand_and_append(token tok) {
 				}
 			}
 		} else {
-			append_token(tok);
+			stream_append(&stream, tok);
 		}
 	} else if (tok.type != comment) {
-		append_token(tok);
+		stream_append(&stream, tok);
 	}
 }
 
@@ -387,12 +375,28 @@ void expand_function_like_macro(macro *mac, token **args) {
 }
 
 int main(int argc, char *argv[]) {
+	token_stream line;
+	int i;
+	while(1) {
+		line = tokenize_line(stdin);
+		for (i = 0; i < line.length; ++i) {
+			token tok;
+			tok = line.tokens[i];
+			if (tok.type == eof) {
+				return;
+			}
+			printf("%s ", tok.text);
+		}
+		printf("\n");
+	}
+	/*
 	int i;
 	tokenize(stdin);
-	for (i = 0; i < num_tokens; ++i) {
-		printf("%s\n", token_stream[i].text);
+	for (i = 0; i < stream.length; ++i) {
+		printf("%s\n", stream.tokens[i].text);
 	}
 	return 0;
+	*/
 }
 
 /*

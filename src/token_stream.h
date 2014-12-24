@@ -11,6 +11,8 @@ typedef struct {
 } token_stream;
 
 token_stream stream_create();
-void stream_append(token_stream *, token);
+void stream_append(token_stream *stream, token tok);
+void stream_cat(token_stream *stream, token_stream cat);
+
 
 #endif

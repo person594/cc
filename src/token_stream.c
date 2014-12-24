@@ -16,3 +16,11 @@ void stream_append(token_stream *stream, token tok) {
 		stream->tokens = realloc(stream->tokens, 2*sizeof(token) * stream->length);
 	}
 }
+
+void stream_cat(token_stream *stream, token_stream cat) {
+	int i;
+	/* TODO - make this more efficient */
+	for (i = 0; i < cat.length; ++i) {
+		stream_append(stream, cat.tokens[i]);
+	}
+}
