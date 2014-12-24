@@ -21,6 +21,11 @@ typedef struct {
 } token;
 
 
+typedef struct {
+	token *tokens;
+	int size;
+} token_stream;
+
 int is_digit(char c);
 int is_identifier_start(char c);
 int is_identifier_char(char c);
