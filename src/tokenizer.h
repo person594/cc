@@ -1,30 +1,9 @@
 #ifndef CC_TOKENIZER_H
 #define CC_TOKENIZER_H
 
+#include "token.h"
+
 #include <stdlib.h> 
-
-typedef enum {
-	identifier,
-	number,
-	char_constant,
-	string_literal,
-	symbol,
-	comment,
-	other,
-	eof
-} tokenType;
-
-typedef struct {
-	char *text;
-	int line, col;
-	tokenType type;
-} token;
-
-
-typedef struct {
-	token *tokens;
-	int size;
-} token_stream;
 
 int is_digit(char c);
 int is_identifier_start(char c);

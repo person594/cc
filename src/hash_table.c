@@ -10,7 +10,7 @@
 unsigned long hash_string(char *key) {
 	unsigned long hash = 5381;
 	int c;
-	while (c = *key++) {
+	while ((c = *key++)) {
 		hash += (hash<<5) + c;
 	}
 	return hash;
@@ -33,6 +33,7 @@ int hash_table_free(hash_table table, int free_values) {
 			hash_table_entry *prev;
 			int top_level = 1;
 			do {
+				count++;
 				free(entry->key);
 				if (free_values) {
 					free(entry->value);
@@ -48,6 +49,7 @@ int hash_table_free(hash_table table, int free_values) {
 		}
 	}
 	free(table.entries);
+	return count;
 }
 
 void *hash_table_insert(hash_table table, char *key, void *value) {

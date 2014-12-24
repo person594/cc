@@ -241,7 +241,7 @@ token scan_string(FILE *file) {
 		if (ch == '\n' || ch == '\v') {
 			tok.text = realloc(tok.text, (i+1) * sizeof(char));
 			tok.text[i] = '\0';
-			if (tok.type = string_literal) {
+			if (tok.type == string_literal) {
 				issue_error("Unclosed string literal", tok);
 			} else {
 				issue_error("Unclosed character constant", tok);
