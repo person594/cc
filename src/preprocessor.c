@@ -6,14 +6,15 @@
 #include "hash_table.h"
 #include "errors.h"
 
-int tokenizer_initialized = 0;
+#if 0
 hash_table macro_symbol_table;
-token_stream stream;
 
 void initialize() {
-	macro_symbol_table = hash_table_create(MACRO_HASH_TABLE_SIZE);
-	stream = stream_create();
-	tokenizer_initialized = 1;
+	static int initialized = 0;
+	if (!initialized) {
+		macro_symbol_table = hash_table_create(MACRO_HASH_TABLE_SIZE);
+		tokenizer_initialized = 1;
+	}
 }
 
 /* TODO - do I need to do any special work to make this reentrant?
@@ -374,29 +375,137 @@ void expand_function_like_macro(macro *mac, token **args) {
 	}
 }
 
-int main(int argc, char *argv[]) {
-	token_stream line;
+token_stream preprocess_stream(token_stream stream) {
 	int i;
-	while(1) {
-		line = tokenize_line(stdin);
-		for (i = 0; i < line.length; ++i) {
-			token tok;
-			tok = line.tokens[i];
-			if (tok.type == eof) {
-				return;
-			}
-			printf("%s ", tok.text);
-		}
-		printf("\n");
-	}
-	/*
-	int i;
-	tokenize(stdin);
+	token_stream out;
+	out = stream_create();
 	for (i = 0; i < stream.length; ++i) {
-		printf("%s\n", stream.tokens[i].text);
+		token tok;
+		tok = stream.tokens[i];
+		/* comments should be stripped out by now,
+		 * but if not, do nothing */
+		if (tok.type == comment) continue;
+		if (tok.type == identifier) {
+			
+		}
 	}
-	return 0;
-	*/
+}
+#endif
+
+
+token_stream parse_directive(token_stream line) {
+	token directive;
+	token_stream stream;
+	directive = line.tokens[1];
+	stream = stream_create();
+	/* do nothing on empty directives */
+	if (directive.type == newline) {
+		return stream;
+	}
+	if (strcmp(directive.text, "include") == 0) {
+		char *search_path, *path;
+		token file_tok;
+		int i, found = 0;
+		file_tok = line.tokens[2];
+		if (file_tok.type != string_literal) {
+			issue_error("Expected filename after include directive", file_tok);
+			return stream;
+		}
+		/* Here is lots of filesystem specific stuff.  TODO - maybe make this work on bad (non-unix-like) filesystems */
+		if (file_tok.text[0] == '\"') {
+			search_path = (char *)malloc((strlen(QUOTE_PATH) + strlen(BRACKET_PATH) + 2) * sizeof(char));
+			strcpy(search_path, QUOTE_PATH ":" BRACKET_PATH);
+		} else if (file_tok.text[0] == '<') {
+			search_path = (char *)malloc((strlen(BRACKET_PATH) + 1) * sizeof(char));
+			strcpy(search_path, BRACKET_PATH);
+		} else {
+			/* There was a tokenization error */
+			return stream; 
+		}
+		path = strtok(search_path, ":");
+		while (path) {
+			int path_len, tok_len;
+			FILE *include_file;
+			char *full_path;
+			path_len = strlen(path);
+			tok_len = strlen(file_tok.text);
+			full_path = (char *)malloc(path_len + tok_len);
+			/* I didn't forget the null character.  tok.text has 2 extra quoting
+			 * characters, and we are adding a delimiter between the 2 parts */
+			memcpy(full_path, path, path_len);
+			full_path[path_len] = '/';
+			memcpy(&full_path[path_len+1], &file_tok.text[1], tok_len-2);
+			full_path[path_len+tok_len-1] = '\0';
+			include_file = fopen(full_path, "r");
+			free(full_path);
+			if (include_file) {
+				free(stream.tokens);
+				stream = preprocess(include_file);
+				fclose(include_file);
+				found = 1;
+				break;
+			}
+			path = strtok(NULL, ":");
+		}
+		if (!found) {
+			issue_error("File not found", file_tok);
+		}
+		free(search_path);
+		
+		for (i = 3; i < line.length - 1; ++i) {
+			issue_error("Unexpected token", line.tokens[i]);
+		}
+	} else if (strcmp(directive.text, "define") == 0) {
+		/* TODO - define directive   
+		parse_macro_definition(file);
+		*/
+	/* Conditionals rely on our ability to parse and evaluate constant
+	 * expressions, which we cannot do now.  TODO : implement #if, #else
+	 * #endif, #ifdef, and #ifndef.*/	
+	} else {
+		issue_error("Unknown preprocessor directive", directive);
+	}
+	
+	return stream;
+	
+}
+
+
+token_stream preprocess(FILE *file) {
+	token_stream line, out_stream;
+	token *position;
+	out_stream = stream_create();
+	do {
+		line = tokenize_line(file);
+		if (strcmp(line.tokens[0].text, "#") == 0) {
+			stream_cat(&out_stream, parse_directive(line));
+		} else {
+			stream_cat(&out_stream, line);
+			/*
+			int i;
+			for (i = 0;  i < line.length; ++i) {
+				
+			}
+			*/
+		}
+	} while (line.tokens[0].type != eof);
+	return out_stream;
+}
+
+
+
+int main(int argc, char *argv[]) {
+	token_stream stream;
+	int i;
+	stream = preprocess(stdin);
+	for (i = 0; i < stream.length; ++i) {
+		token tok;
+		tok = stream.tokens[i];
+		if (tok.preceding_whitespace) {
+			printf(" ");
+		}
+		printf("%s", tok.text);
+	}
 }
 
 /*

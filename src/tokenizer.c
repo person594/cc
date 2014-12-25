@@ -23,9 +23,9 @@ int is_symbol_start(char c) {
 	return strchr("{}[]().-+&|*~!/%<>=^?:,#;", c) ? 1 : 0; 
 }
 
-
+int prev_newline = 1;
 char next_ch(FILE *file) {
-	int c; 
+	int c;
 	char ch;
 	/*
 	 after reading a trigraph, we need to increment our column number
@@ -36,13 +36,22 @@ char next_ch(FILE *file) {
 	col_increment = 0;
 	
 	c = getc(file);
-	if (c < 0) return '\0';
+	if (c < 0) {
+		if (prev_newline) {
+			return '\0';
+		} else {
+			prev_newline = 1;
+			return '\n';
+		}
+	}
 	ch = (char) c;
 	
 	if (ch == '\n' || ch == '\v') {
 		line++, col = 0;
+		prev_newline = 1;
 	} else {
 		col++;
+		prev_newline = 0;
 	}
 	
 	if (ch == '\\') {
@@ -97,7 +106,10 @@ char peek_ch(FILE *file) {
 	ch = (char) c;
 	if (c < 0) {
 		c = 0;
-		ch = '\0';
+		if (prev_newline)
+			ch = '\0';
+		else
+			ch = '\n';
 	} else if (c == '\\') {
 		int c2;
 		c2 = getc(file);
@@ -155,19 +167,20 @@ void skip_line(FILE *file) {
 	}
 }
 
-/*
- * Consumes whitespace in the file.
- * returns the number of newlines consumed
- */
 int consume_whitespace(FILE *file) {
-	int newlines = 0;
-	while (isspace(peek_ch(file))) {
-		char ch;
-		ch = next_ch(file);
-		newlines += (ch == '\n' || ch == '\v');
+	int n = 0;
+	char ch;
+	while (ch = peek_ch(file)) {
+		if (!isspace(ch) || ch == '\n' || ch == '\v') {
+			return n;
+		} else {
+			next_ch(file);
+			n++;
+		}
 	}
-	return newlines;
+	return n;
 }
+
 
 token scan_identifier(FILE *file) {
 	int buffer_len = 32;
@@ -433,45 +446,78 @@ token scan_symbol(FILE *file) {
 	return tok;
 }
 
-token scan_token(FILE *file) {
+token scan_token(FILE *file, int is_include) {
 	char ch;
+	token tok;
+	int whitespace;
+	whitespace = consume_whitespace(file);
 	ch = peek_ch(file);
 	if (ch == '\0') {
-		token tok;
 		tok.line = line;
 		tok.col = col;
 		tok.type = eof;
 		tok.text = (char *)calloc(1, sizeof(char));
-		return tok;
+	} else if (ch == '\n' || ch == '\v') {
+		tok.text = (char *)calloc(2, sizeof(char));
+		tok.text[0] = next_ch(file);
+		tok.line = line;
+		tok.col = col;
+		tok.type = newline;
 	} else if (is_identifier_start(ch)) {
-		return scan_identifier(file);
+		tok = scan_identifier(file);
 	} else if (is_digit(ch)) {
-		return scan_number(file);
+		tok = scan_number(file);
+	} else if (is_include && (ch == '\"' || ch == '<')) {
+		tok = scan_preprocessor_string(file);
 	} else if (ch == '"' || ch == '\'') {
-		return scan_string(file);
+		tok = scan_string(file);
 	} else if (is_symbol_start(ch)) {
-		return scan_symbol(file);
+		tok = scan_symbol(file);
+		if (tok.type == comment) {
+			tok = scan_token(file, is_include);
+			whitespace += tok.preceding_whitespace + 1;
+		}
 	} else {
-		token tok;
 		tok.text = (char *)calloc(2, sizeof(char));
 		tok.text[0] = next_ch(file);
 		tok.line = line;
 		tok.col = col;
 		tok.type = other;
-		return tok;
 	}
+	tok.preceding_whitespace = whitespace;
+	return tok;
 }
+
 
 token_stream tokenize_line(FILE *file) {
 	token_stream stream;
 	token tok;
+	int is_include = 0;
 	stream = stream_create();
-	while (consume_whitespace(file) == 0 || stream.length == 0) {
-		tok = scan_token(file);
-		if (tok.type != comment) {
-			stream_append(&stream, tok);
-		}
-		if (tok.type == eof) break;
+	tok = scan_token(file, is_include);
+	stream_append(&stream, tok);
+	if (strcmp(tok.text, "#") == 0) {
+		tok = scan_token(file, is_include);
+		stream_append(&stream, tok);
+		is_include = (tok.type == identifier && strcmp(tok.text, "include") == 0);
 	}
+	while (tok.type != newline && tok.type != eof) {
+		tok = scan_token(file, is_include);
+		stream_append(&stream, tok);
+	}
+	return stream;
+}
+
+
+token_stream tokenize_file(FILE *file) {
+	token_stream stream, line;
+	token tok;
+	stream = stream_create();
+	do {
+		line = tokenize_line(file);
+		tok = line.tokens[0];
+		stream_cat(&stream, line);
+		free(line.tokens);
+	} while (tok.type != eof);
 	return stream;
 }

@@ -24,11 +24,9 @@ token scan_number(FILE *file);
 token scan_string(FILE *file);
 token scan_preprocessor_string(FILE *file);
 token scan_symbol(FILE *file);
-token scan_token(FILE *file);
+token scan_token(FILE *file, int is_include);
 
-/* tokenizes one logical line of c code, taking into account
- * line continuations.  If called at the end of file, returns
- * a token stream consisting of a single EOF token */
 token_stream tokenize_line(FILE *file);
+token_stream tokenize_file(FILE *file);
 
 #endif

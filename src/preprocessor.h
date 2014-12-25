@@ -17,12 +17,11 @@
 #define QUOTE_PATH "."
 
 typedef struct {
-	/* num_params is -1 for object-like macros */
-	int num_params, body_len;
-	char **params;
-	token *body;
+	/* num_args is -1 for object-like macros */
+	int num_args;
+	token_stream replacement;
 } macro;
-
+#if 0
 void initialize();
 
 void append_token(token tok);
@@ -37,3 +36,10 @@ void parse_directive(FILE *file);
 void parse_macro_definition(FILE *file);
 
 void expand_function_like_macro(macro *mac, token **args);
+
+/* preprocesses a token stream, returning the resulting stream.
+ * does not treat the stream as the start of a line, and thus  will not
+ * parse directives */
+token_stream preprocess_stream(token_stream stream);
+#endif
+token_stream preprocess(FILE *file);
