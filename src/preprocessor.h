@@ -6,10 +6,7 @@
 #include "token_stream.h"
 
 #define MACRO_HASH_TABLE_SIZE 1024
-#define INITIAL_TOKEN_STREAM_SIZE 4096
 
-#define INIT_MACRO_PARAMS_SIZE 4
-#define INIT_MACRO_BODY_SIZE 16
 
 /* This is commented out because lots of stuff in there uses
  * conditional directives I can't parse yet, leading to infinite loops */
@@ -18,7 +15,9 @@
 
 typedef struct {
 	/* num_args is -1 for object-like macros */
-	int num_args;
+	int num_params;
+	int variadic;
+	char **parameters;
 	token_stream replacement;
 } macro;
 #if 0
@@ -42,4 +41,5 @@ void expand_function_like_macro(macro *mac, token **args);
  * parse directives */
 token_stream preprocess_stream(token_stream stream);
 #endif
+token_stream parse_directive(token_stream line);
 token_stream preprocess(FILE *file);

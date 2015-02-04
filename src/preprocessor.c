@@ -393,6 +393,55 @@ token_stream preprocess_stream(token_stream stream) {
 #endif
 
 
+hash_table macro_symbol_table;
+
+void initialize() {
+	static int initialized = 0;
+	if (!initialized) {
+		macro_symbol_table = hash_table_create(MACRO_HASH_TABLE_SIZE);
+		initialized = 1;
+	}
+}
+
+
+void parse_macro_definition(token_stream definition) {
+	macro *mac, *old_mac;
+	token macro_name;
+	macro_name = definition.tokens[0];
+	mac = (macro *)malloc(sizeof(macro));
+	if (macro_name.type != identifier) {
+		issue_error("Macro name must be an identifier", macro_name);
+		return;
+	}
+	if (strcmp(macro_name.text, "defined") == 0) {
+		issue_error("\"defined\" cannot be used as a macro name", macro_name);
+		return;
+	}
+	
+	if (definition.tokens[1].preceding_whitespace == 0 && definition.tokens[1].type == symbol && strcmp(definition.tokens[1].text, "(") == 0) {
+		/* function-like macro */
+		
+	} else {
+		/* object-like macro */
+		mac->num_params = -1;
+		/* streams in our macro table should have their own memory allocated */
+		mac->replacement = stream_create();
+		stream_cat(&mac->replacement, stream_tail(definition, 1));
+	}
+	
+	old_mac = hash_table_insert(macro_symbol_table, macro_name.text, mac);
+	/* If something else was already #defined, make sure it is equivalent */
+	if (old_mac) {
+	token_stream replacement;
+		if (old_mac->num_params != mac->num_params
+		|| (!old_mac->variadic) != (!mac->variadic)
+		|| !stream_identical(old_mac->replacement, mac->replacement)) {
+			issue_error("Illegal redefinition of macro", macro_name);
+		}
+	}
+}
+
+
 token_stream parse_directive(token_stream line) {
 	token directive;
 	token_stream stream;
@@ -456,9 +505,8 @@ token_stream parse_directive(token_stream line) {
 			issue_error("Unexpected token", line.tokens[i]);
 		}
 	} else if (strcmp(directive.text, "define") == 0) {
-		/* TODO - define directive   
-		parse_macro_definition(file);
-		*/
+		parse_macro_definition(substream(line, 2, line.length));
+		
 	/* Conditionals rely on our ability to parse and evaluate constant
 	 * expressions, which we cannot do now.  TODO : implement #if, #else
 	 * #endif, #ifdef, and #ifndef.*/	
@@ -473,11 +521,12 @@ token_stream parse_directive(token_stream line) {
 
 token_stream preprocess(FILE *file) {
 	token_stream line, out_stream;
-	token *position;
+	token tok;
 	out_stream = stream_create();
 	do {
 		line = tokenize_line(file);
-		if (strcmp(line.tokens[0].text, "#") == 0) {
+		tok = line.tokens[0];
+		if (tok.type == symbol && strcmp(tok.text, "#") == 0) {
 			stream_cat(&out_stream, parse_directive(line));
 		} else {
 			stream_cat(&out_stream, line);
@@ -488,7 +537,8 @@ token_stream preprocess(FILE *file) {
 			}
 			*/
 		}
-	} while (line.tokens[0].type != eof);
+		free(line.tokens);
+	} while (tok.type != eof);
 	return out_stream;
 }
 
@@ -497,6 +547,7 @@ token_stream preprocess(FILE *file) {
 int main(int argc, char *argv[]) {
 	token_stream stream;
 	int i;
+	initialize();
 	stream = preprocess(stdin);
 	for (i = 0; i < stream.length; ++i) {
 		token tok;
@@ -507,61 +558,3 @@ int main(int argc, char *argv[]) {
 		printf("%s", tok.text);
 	}
 }
-
-/*
-int main(int argc, char *argv[]) {
-	
-	token tok;
-	while ((tok = next_token(stdin)).type != eof) {
-		char *typeString;
-		switch (tok.type) {
-			case identifier:
-				typeString = "Identifier";
-				break;
-			case number:
-				typeString = "Number";
-				break;
-			case char_constant:
-				typeString = "Character Constant";
-				break;
-			case string_literal:
-				typeString = "String Literal";
-				break;
-			case symbol:
-				typeString = "Symbol";
-				break;
-			case other:
-				typeString = "Other";
-				break;
-			case eof:
-				typeString = "End of File";
-				break;
-			default:
-				typeString = "Unknown Token";
-				break;
-		}
-		printf("%s : %s\n@%d:%d\n", tok.text, typeString, tok.line, tok.col);
-	}
-}
-
-
-token *tokenize(FILE *file, int *count) {
-	token tok;
-	int buffer_size = 1024;
-	int i = 0;
-	token *token_buffer = (token *)malloc(buffer_size *  sizeof(token));
-	do {
-		tok = tok = next_token(file);
-		if (i == buffer_size) {
-			buffer_size *= 2;
-			token_buffer = (token *)realloc(token_buffer, buffer_size * sizeof(token));
-		}
-		token_buffer[i++] = tok;
-	} while (tok.type != eof);
-	*count = i;
-	return token_buffer;
-}
-*/
-
-
-
