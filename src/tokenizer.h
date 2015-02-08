@@ -26,6 +26,9 @@ token scan_preprocessor_string(FILE *file);
 token scan_symbol(FILE *file);
 token scan_token(FILE *file, int is_include);
 
+/* returns a token stream for a single line,
+ * including the terminal newline
+ */
 token_stream tokenize_line(FILE *file);
 token_stream tokenize_file(FILE *file);
 

@@ -403,6 +403,10 @@ void initialize() {
 	}
 }
 
+void parse_macro_parameter_list(macro *mac, token_stream *param_line) {
+	//todo
+}
+
 
 void parse_macro_definition(token_stream definition) {
 	macro *mac, *old_mac;
@@ -420,13 +424,18 @@ void parse_macro_definition(token_stream definition) {
 	
 	if (definition.tokens[1].preceding_whitespace == 0 && definition.tokens[1].type == symbol && strcmp(definition.tokens[1].text, "(") == 0) {
 		/* function-like macro */
-		
+		/* first parse the parameter list */
+		parse_macro_parameter_list(mac, &definition);
 	} else {
 		/* object-like macro */
 		mac->num_params = -1;
 		/* streams in our macro table should have their own memory allocated */
 		mac->replacement = stream_create();
 		stream_cat(&mac->replacement, stream_tail(definition, 1));
+		/* the first element of the new stream shouldn't have any preceding whitespace, and there
+		 * should be no newline at the end */
+		mac->replacement.tokens[0].preceding_whitespace = 0;
+		mac->replacement = substream(mac->replacement, 0, mac->replacement.length - 1);
 	}
 	
 	old_mac = hash_table_insert(macro_symbol_table, macro_name.text, mac);
@@ -518,27 +527,52 @@ token_stream parse_directive(token_stream line) {
 	
 }
 
+token_stream preprocess_line(token_stream line) {
+	token *tok;
+	tok = line.tokens;
+	if (tok->type == symbol && strcmp(tok->text, "#") == 0) {
+		return parse_directive(line);
+	} else {
+		token_stream out_stream;
+		out_stream = stream_create();
+		do {
+			switch(tok->type) {
+				macro *mac;
+				case identifier:
+					mac = hash_table_retrieve(macro_symbol_table, tok->text);
+					if (mac) {
+						if (mac->num_params < 0) {
+							if (mac->replacement.length > 0) {
+								int start_of_new_tokens = out_stream.length;
+								stream_cat(&out_stream, mac->replacement);
+								out_stream.tokens[start_of_new_tokens].preceding_whitespace = tok->preceding_whitespace;
+							} else {
+								stream_cat(&out_stream, mac->replacement);
+							}
+						} else {
+							/* function-like macro */
+						}
+						break;
+					}
+					/* else fall through */
+				default:
+					stream_append(&out_stream, *tok);
+			}
+			
+		} while (tok->type != eof && tok++->type != newline);
+		return out_stream;
+	}
+	
+}
+
 
 token_stream preprocess(FILE *file) {
 	token_stream line, out_stream;
-	token tok;
 	out_stream = stream_create();
 	do {
 		line = tokenize_line(file);
-		tok = line.tokens[0];
-		if (tok.type == symbol && strcmp(tok.text, "#") == 0) {
-			stream_cat(&out_stream, parse_directive(line));
-		} else {
-			stream_cat(&out_stream, line);
-			/*
-			int i;
-			for (i = 0;  i < line.length; ++i) {
-				
-			}
-			*/
-		}
-		free(line.tokens);
-	} while (tok.type != eof);
+		stream_cat(&out_stream, preprocess_line(line));
+	} while (line.tokens->type != eof);
 	return out_stream;
 }
 

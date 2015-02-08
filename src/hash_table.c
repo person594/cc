@@ -89,6 +89,7 @@ void *hash_table_retrieve(hash_table table, char *key) {
 	hash_table_entry *current_entry;
 	index = hash_string(key) % table.size;
 	current_entry = &table.entries[index];
+	if (!current_entry->key) return NULL;
 	while (strcmp(key, current_entry->key)) {
 		current_entry = current_entry->next;
 		if (!current_entry) return NULL;
